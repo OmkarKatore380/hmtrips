@@ -29,10 +29,10 @@ export default function AIChatBox() {
   }
 
   return (
-    /* 🔥 MOVED HIGHER */
-    <div className="fixed bottom-[52%] right-6 z-[9999] flex flex-col items-end">
+    /* 🔥 POSITION MATCHED TO ACTION BUTTONS ON LEFT */
+    <div className="fixed bottom-6 left-6 z-[9999] flex flex-col items-start">
       {isOpen && (
-        <div className="absolute right-20 bottom-0 w-80 md:w-96 h-[450px] bg-white rounded-3xl shadow-2xl border border-neutral-200 flex flex-col overflow-hidden animate-in zoom-in slide-in-from-right-10 duration-300 origin-bottom-right">
+        <div className="absolute left-20 bottom-0 w-80 md:w-96 h-[450px] bg-white rounded-3xl shadow-2xl border border-neutral-200 flex flex-col overflow-hidden animate-in zoom-in slide-in-from-left-10 duration-300 origin-bottom-left">
           
           {/* HEADER */}
           <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-5 flex items-center justify-between text-white">
@@ -78,7 +78,7 @@ export default function AIChatBox() {
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleSend()}
               placeholder="Ask about your next trip..."
-              className="flex-1 bg-neutral-100 border-none rounded-2xl px-5 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+              className="flex-1 bg-neutral-100 border-none rounded-2xl px-5 py-3 text-sm text-black focus:ring-2 focus:ring-blue-500 outline-none transition-all"
             />
             <button onClick={handleSend} className="bg-blue-600 text-white p-3 rounded-2xl hover:bg-blue-700 active:scale-95 transition-all shadow-lg shadow-blue-200">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

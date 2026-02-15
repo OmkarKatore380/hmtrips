@@ -191,7 +191,7 @@ function BookSection({ tour, formatPrice }) {
               min={1}
               value={guests}
               onChange={(e) => setGuests(Number(e.target.value) || 1)}
-              className="w-full px-4 py-3 rounded-lg border border-neutral-300"
+              className="w-full px-4 py-3 rounded-lg border border-neutral-300 bg-white text-neutral-900"
             />
           </div>
           <div>
@@ -200,7 +200,7 @@ function BookSection({ tour, formatPrice }) {
               type="text"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              className="w-full px-4 py-3 rounded-lg border border-neutral-300"
+              className="w-full px-4 py-3 rounded-lg border border-neutral-300 bg-white text-neutral-900"
               placeholder="Special requests..."
             />
           </div>
@@ -301,7 +301,7 @@ export default function Itinerary() {
   const entertainmentShows = tour.entertainmentShows || []
 
   return (
-    <div className={`vibe-${vibe} min-h-screen`}>
+    <div className="bg-white min-h-screen">
       {/* Hero - destination themed with parallax & vibe overlay */}
       <section className="relative min-h-[55vh] sm:min-h-[65vh] md:min-h-[75vh] flex items-end overflow-hidden">
         <div className="absolute inset-0">
@@ -310,7 +310,7 @@ export default function Itinerary() {
             alt={tour.name}
             className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 hero-overlay-vibe" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
         </div>
         {/* Snowflakes for cold destinations */}
         {isCold && (
@@ -330,7 +330,7 @@ export default function Itinerary() {
             </svg>
             Back to Upcoming Tours
           </Link>
-          <p className="text-white/80 font-medium uppercase tracking-wider text-sm mb-2 accent-text">
+          <p className="text-white/80 font-medium uppercase tracking-wider text-sm mb-2">
             {tour.tagline}
           </p>
           <h1 className="font-display text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-semibold text-white leading-tight max-w-4xl drop-shadow-lg">
@@ -381,8 +381,8 @@ export default function Itinerary() {
         </div>
       </section>
 
-      {/* Trip summary strip - vibe tint */}
-      <section className="section-bg-vibe border-b border-neutral-200 shadow-sm">
+      {/* Trip summary strip - white theme */}
+      <section className="bg-neutral-50 border-b border-neutral-200 shadow-sm">
         <ScrollReveal variant="slideUp" duration={600}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
@@ -466,7 +466,7 @@ export default function Itinerary() {
       </section>
 
       {/* Itinerary - Day wise details */}
-      <section id="itinerary" className="py-10 md:py-16 section-bg-vibe border-t border-neutral-200">
+      <section id="itinerary" className="py-10 md:py-16 bg-neutral-50 border-t border-neutral-200">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <ScrollReveal variant="slideLeft" duration={500}>
           <h2 className="font-display text-xl md:text-2xl font-semibold text-neutral-950 mb-1">
@@ -518,7 +518,7 @@ export default function Itinerary() {
 
       {/* Shore Excursions */}
       {shoreExcursionImages.length > 0 && (
-        <section className="py-16 bg-neutral-50 border-y border-neutral-200">
+        <section className="py-16 bg-white border-y border-neutral-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <h2 className="font-display text-2xl font-semibold text-neutral-950 mb-2 inline-flex items-center gap-2">
               Shore Excursions

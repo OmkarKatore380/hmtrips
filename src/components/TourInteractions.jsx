@@ -131,12 +131,13 @@ export default function TourInteractions({ tour }) {
           </svg>
         </button>
 
-        {/* Dislike Button */}
+        {/* Dislike Button - COMMENTED OUT
         <button onClick={handleDislike} className="p-4 active:scale-90 transition-transform">
           <svg width="24" height="24" viewBox="0 0 24 24" fill={disliked ? "#000" : "none"} stroke={disliked ? "#000" : "#666"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7L2 11c0 1.1.9 2 2 2h9.93L10 15z"></path>
           </svg>
-        </button>
+        </button> 
+        */}
 
         {/* View Count */}
         <div className="flex items-center gap-1.5 px-2 text-neutral-500">

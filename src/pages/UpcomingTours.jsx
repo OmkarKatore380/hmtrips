@@ -14,7 +14,9 @@ const CATEGORIES = [
   { id: 'free-visa', title: 'Free Visa Packages', theme: 'from-sky-500/80 to-blue-400/20', image: 'https://images.unsplash.com/photo-1587019158091-1a103c5dd17f?q=80&w=1170&auto=format&fit=crop', icon: '✈️' },
   { id: 'intl-visa', title: 'Passport & Visa Required', theme: 'from-emerald-500/80 to-teal-400/20', image: 'https://www.shutterstock.com/shutterstock/photos/2712081267/display_1500/stock-photo-passports-of-citizens-of-different-countries-of-the-world-background-consisting-of-passports-of-2712081267.jpg', icon: '🌍' },
   { id: 'historical', title: 'Historian Places', theme: 'from-amber-500/80 to-yellow-600/20', image: 'https://images.unsplash.com/photo-1599661046289-e31897846e41?w=800&q=80', icon: '🏛️' },
-  { id: 'seasonal', title: 'Best Season to Travel', theme: 'from-purple-500/80 to-indigo-400/20', image: 'https://images.unsplash.com/photo-1473496169904-658ba7c44d8a?w=800&q=80', icon: '🗓️' }
+  { id: 'seasonal', title: 'Best Season to Travel', theme: 'from-purple-500/80 to-indigo-400/20', image: 'https://images.unsplash.com/photo-1473496169904-658ba7c44d8a?w=800&q=80', icon: '🗓️' },
+  /* 6TH NEW PACKAGE ADDED WITH CUSTOM URL */
+  { id: 'jyotirlinga', title: '12 Jyotirlingas', theme: 'from-orange-600/80 to-amber-500/20', image: 'https://images.unsplash.com/photo-1605292356183-a77d0a9c9d1d?q=80&w=712&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D', icon: '🪔' }
 ]
 
 export default function UpcomingTours() {
@@ -125,7 +127,6 @@ export default function UpcomingTours() {
               {isPersonalized ? "Based on your recent interests" : "Find your next adventure — from tropical shores to winter wonderlands"}
             </p>
 
-            {/* RESTORED ORIGINAL SEARCH BAR DESIGN */}
             <div className="p-4 md:p-8 rounded-[32px] shadow-2xl border bg-white/90 backdrop-blur-md border-white/20">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex items-end gap-4">
                 <div className="flex-1 text-left">
