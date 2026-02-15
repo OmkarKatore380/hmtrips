@@ -10,6 +10,9 @@ import {
   orderBy,
   serverTimestamp,
   where,
+  increment, // Added for CRM counting
+  arrayUnion, // Added for CRM history lists
+  setDoc, // Added for high-speed profile creation
 } from 'firebase/firestore'
 import { db } from './firebase'
 
@@ -157,4 +160,44 @@ export async function getPayments() {
     createdAt: d.data().createdAt?.toDate?.(),
     updatedAt: d.data().updatedAt?.toDate?.(),
   }))
+}
+
+// ——— CRM LOGIC (AMAZON/FLIPKART STYLE) ———
+
+/**
+ * Tracks User Behavior (Search, Like, Dislike, View, Bookings).
+ * Fast and able to handle heavy traffic using merge: true.
+ */
+export async function syncUserCRM(userId, behaviorData) {
+  if (!userId) return;
+
+  // STEP 1 TEST: Check if this log appears in your browser console
+  console.log("🚀 CRM Sync Triggered:", { userId, behaviorData });
+
+  const userRef = doc(db, COLLECTIONS.users, userId);
+  // Merges new interaction data without deleting existing user profile fields
+  await setDoc(userRef, { 
+    ...behaviorData, 
+    lastActive: serverTimestamp() 
+  }, { merge: true });
+}
+
+/**
+ * Tracks Global Trends (Most Searched/Most Viewed Destinations).
+ * Uses atomic increment for speed and high traffic.
+ */
+export async function trackGlobalTrend(itemName) {
+  if (!itemName) return;
+
+  // STEP 1 TEST: Check if global trends are triggering
+  console.log("📈 Tracking Global Trend for:", itemName);
+
+  const trendRef = doc(db, 'metadata', 'global_trends');
+  await updateDoc(trendRef, {
+    [`stats.${itemName}.count`]: increment(1),
+    lastUpdated: serverTimestamp()
+  }).catch(() => {
+    // If metadata doc doesn't exist, create it once
+    setDoc(trendRef, { stats: { [itemName]: { count: 1 } } });
+  });
 }

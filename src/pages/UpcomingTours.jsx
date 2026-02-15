@@ -1,230 +1,206 @@
-import { useState, useMemo, useEffect } from 'react'
-import { tours as staticTours, getFilterOptionsFromTours } from '../data/tours'
-import { useTours } from '../data/toursData'
-import TourCard from '../components/TourCard'
-import CallbackCard from '../components/CallbackCard'
-import GuidanceModal from '../components/GuidanceModal'
-import PromoBanner from '../components/PromoBanner'
+import { useState, useEffect, useMemo } from 'react'
+import { tours as staticTours } from '../data/tours'
+import { useNavigate } from 'react-router-dom'
 import ScrollReveal from '../components/ScrollReveal'
+import CallbackCard from '../components/CallbackCard'
+import TourInteractions from '../components/TourInteractions'
+import { useAuth } from '../contexts/AuthContext' 
+import { db } from '../lib/firebase' 
+import { syncUserCRM } from '../lib/firestore' 
+import { collection, query, where, getDocs, limit, orderBy, doc, getDoc } from 'firebase/firestore'
+
+const CATEGORIES = [
+  { id: 'honeymoon', title: 'Honeymoon Packages', theme: 'from-pink-500/80 to-rose-400/20', image: 'https://images.unsplash.com/photo-1583939003579-730e3918a45a?w=800&q=80', icon: '❤️' },
+  { id: 'free-visa', title: 'Free Visa Packages', theme: 'from-sky-500/80 to-blue-400/20', image: 'https://images.unsplash.com/photo-1587019158091-1a103c5dd17f?q=80&w=1170&auto=format&fit=crop', icon: '✈️' },
+  { id: 'intl-visa', title: 'Passport & Visa Required', theme: 'from-emerald-500/80 to-teal-400/20', image: 'https://www.shutterstock.com/shutterstock/photos/2712081267/display_1500/stock-photo-passports-of-citizens-of-different-countries-of-the-world-background-consisting-of-passports-of-2712081267.jpg', icon: '🌍' },
+  { id: 'historical', title: 'Historian Places', theme: 'from-amber-500/80 to-yellow-600/20', image: 'https://images.unsplash.com/photo-1599661046289-e31897846e41?w=800&q=80', icon: '🏛️' },
+  { id: 'seasonal', title: 'Best Season to Travel', theme: 'from-purple-500/80 to-indigo-400/20', image: 'https://images.unsplash.com/photo-1473496169904-658ba7c44d8a?w=800&q=80', icon: '🗓️' }
+]
 
 export default function UpcomingTours() {
-  const { tours: toursFromFirestore, loading: toursLoading } = useTours()
-  const tours = toursFromFirestore.length > 0 ? toursFromFirestore : staticTours
-  const filterOptions = useMemo(() => getFilterOptionsFromTours(tours), [tours])
-  const [destination, setDestination] = useState(filterOptions.destinations[0])
-  const [month, setMonth] = useState(filterOptions.months[0])
-  const [nights, setNights] = useState(filterOptions.nights[0])
-  const [tripName, setTripName] = useState('Trip name?')
-  const [sortBy, setSortBy] = useState('date')
-  const [filterOpen, setFilterOpen] = useState(false)
-  const [showGuidanceModal, setShowGuidanceModal] = useState(false)
+  const navigate = useNavigate()
+  const { user } = useAuth()
+  const [loading, setLoading] = useState(true)
+  const [recommendedTours, setRecommendedTours] = useState([])
+  const [viewLimit, setViewLimit] = useState(9)
+  const [isPersonalized, setIsPersonalized] = useState(false) 
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('all')
 
-  // Keep filter dropdowns in sync when tours load (e.g. from admin)
+  // Personalization Logic
   useEffect(() => {
-    setDestination((d) => (filterOptions.destinations.includes(d) ? d : filterOptions.destinations[0]))
-    setMonth((m) => (filterOptions.months.includes(m) ? m : filterOptions.months[0]))
-    setNights((n) => (filterOptions.nights.includes(n) ? n : filterOptions.nights[0]))
-    setTripName((t) => (filterOptions.tripNames.includes(t) ? t : 'Trip name?'))
-  }, [filterOptions.destinations, filterOptions.months, filterOptions.nights, filterOptions.tripNames])
+    const fetchUserPreferences = async () => {
+      setLoading(true)
+      if (user) {
+        try {
+          const q = query(collection(db, 'orders'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'), limit(1))
+          const querySnapshot = await getDocs(q)
+          
+          const userDoc = await getDoc(doc(db, 'users', user.uid))
+          const userData = userDoc.exists() ? userDoc.data() : null
 
-  useEffect(() => {
-    try {
-      if (localStorage.getItem('hmtours_guidance_modal_closed') === 'true') return
-    } catch (_) {}
-    const t = setTimeout(() => setShowGuidanceModal(true), 1500)
-    return () => clearTimeout(t)
-  }, [])
+          let targetCategory = null;
 
-  const filteredTours = useMemo(() => {
-    let list = [...tours]
-    if (tripName && tripName !== 'Trip name?') {
-      list = list.filter((t) => t.name === tripName)
-    }
-    if (destination && destination !== 'Where to?') {
-      list = list.filter((t) =>
-        (t.destination || '').toLowerCase().includes(destination.toLowerCase()) ||
-        (t.origin || '').toLowerCase().includes(destination.toLowerCase())
-      )
-    }
-    if (month && month !== 'Travel month?') {
-      const monthNum = filterOptions.months.indexOf(month)
-      if (monthNum > 0) {
-        list = list.filter((t) => new Date(t.departureDate).getMonth() === monthNum - 1)
+          if (!querySnapshot.empty) {
+            targetCategory = querySnapshot.docs[0].data().category;
+          } else if (userData) {
+            targetCategory = userData.category || userData.preferredCategory;
+          }
+
+          if (targetCategory) {
+            const preferred = staticTours.filter(t => t.category === targetCategory)
+            const others = staticTours.filter(t => t.category !== targetCategory)
+            setRecommendedTours([...preferred, ...others])
+            setIsPersonalized(true)
+          } else { 
+            setRecommendedTours(staticTours) 
+            setIsPersonalized(false)
+          }
+        } catch (error) { 
+          setRecommendedTours(staticTours) 
+        }
+      } else { 
+        setRecommendedTours(staticTours) 
+        setIsPersonalized(false)
       }
+      setLoading(false)
     }
-    if (nights && nights !== 'Nights?') {
-      const n = parseInt(nights, 10)
-      if (!isNaN(n)) list = list.filter((t) => t.nights === n)
-    }
-    if (sortBy === 'date') {
-      list.sort((a, b) => new Date(a.departureDate) - new Date(b.departureDate))
-    } else if (sortBy === 'price') {
-      list.sort((a, b) => (a.pricePerGuest || 0) - (b.pricePerGuest || 0))
-    } else if (sortBy === 'nights') {
-      list.sort((a, b) => (b.nights || 0) - (a.nights || 0))
-    }
-    return list
-  }, [tours, destination, month, nights, tripName, sortBy, filterOptions.months])
+    fetchUserPreferences()
+  }, [user])
 
-  const applyFilters = () => {
-    // State is already applied; scroll to results
-    document.getElementById('results')?.scrollIntoView({ behavior: 'smooth' })
+  const handleCategoryClick = (catId) => {
+    setSelectedCategory(catId === selectedCategory ? 'all' : catId);
+    if (user?.uid && catId) {
+      syncUserCRM(user.uid, { 
+        preferredCategory: catId,
+        category: catId,
+        lastInteraction: 'category_filter' 
+      });
+    }
+  };
+
+  const handleSearch = () => {
+    if (user?.uid && searchQuery) {
+      syncUserCRM(user.uid, { 
+        lastSearch: searchQuery,
+        searchCount: 1 
+      });
+    }
+  };
+
+  const handleTourClick = (tour) => {
+    if (user?.uid && tour) {
+      syncUserCRM(user.uid, {
+        lastClickedTour: tour.name || 'Unknown',
+        category: tour.category || 'general', 
+        lastInteraction: 'view_itinerary_click'
+      });
+    }
+    navigate(`/itinerary/${tour.id}`);
   }
 
+  const filteredTours = useMemo(() => {
+    return recommendedTours.filter(tour => {
+      const matchesSearch = tour.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                            tour.destination.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesCategory = selectedCategory === 'all' || tour.category === selectedCategory;
+      return matchesSearch && matchesCategory;
+    });
+  }, [recommendedTours, searchQuery, selectedCategory]);
+
+  const displayTours = useMemo(() => filteredTours.slice(0, viewLimit), [filteredTours, viewLimit])
+
   return (
-    <>
-      <GuidanceModal open={showGuidanceModal} onClose={() => setShowGuidanceModal(false)} />
-      <div className="bg-white min-h-screen min-h-screen-mobile overflow-x-hidden">
-        {/* Hero search - Explore Trips & Holidays (parallax) */}
-        <section className="relative min-h-[280px] sm:min-h-[400px] flex items-start sm:items-center pt-8 sm:pt-14 pb-10 overflow-hidden">
-          {/* Parallax background */}
-          <div
-            className="absolute inset-0 bg-cover bg-center bg-no-repeat parallax-bg transition-transform duration-100"
-            style={{
-              backgroundImage: `url(https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1600&q=80)`,
-              backgroundAttachment: 'fixed',
-            }}
-            aria-hidden
-          />
-          {/* Gradient overlay for legibility + depth */}
-          <div className="absolute inset-0 bg-gradient-to-b from-white/70 via-white/85 to-white/95" aria-hidden />
-          <div className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <ScrollReveal variant="fade" duration={700}>
-            <h1 className="font-display text-3xl md:text-5xl font-bold text-neutral-950 text-center mb-2 drop-shadow-sm">
-              Explore Trips & Holidays
+    <div className="bg-white min-h-screen">
+      <section className="max-w-7xl mx-auto px-4 py-12">
+        <section className="relative min-h-[420px] flex items-center justify-center overflow-hidden mb-12 rounded-[40px] shadow-2xl bg-slate-50">
+          <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1600&q=80)` }} />
+          <div className="absolute inset-0 bg-white/40 backdrop-blur-[2px]" />
+
+          <div className="relative z-10 w-full max-w-4xl mx-auto px-4 text-center">
+            <h1 className="text-4xl md:text-7xl mb-4 text-blue-950 tracking-wide" style={{ fontFamily: '"Californian FB", serif' }}>
+              {isPersonalized ? "Top Choices for You" : "Explore Trips & Holidays"}
             </h1>
-            <p className="text-neutral-600 text-center text-sm sm:text-base mb-6 sm:mb-8 max-w-xl mx-auto">
-              Find your next adventure — from tropical shores to winter wonderlands
+            <p className="text-sm md:text-lg italic mb-10 text-blue-900/80 font-medium">
+              {isPersonalized ? "Based on your recent interests" : "Find your next adventure — from tropical shores to winter wonderlands"}
             </p>
-          </ScrollReveal>
-          <ScrollReveal variant="scaleIn" staggerIndex={1} duration={600}>
-          <div className="bg-white/95 backdrop-blur-sm rounded-2xl border-2 border-neutral-200/80 shadow-xl p-4 md:p-6 transition-all duration-300 hover:shadow-2xl hover:border-neutral-300/80">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-wrap items-end gap-4">
-              <div className="w-full sm:min-w-0 lg:flex-1 lg:min-w-[140px]">
-                <label className="block text-sm font-medium text-neutral-700 mb-1">Select Destination</label>
-                <select
-                  value={destination}
-                  onChange={(e) => setDestination(e.target.value)}
-                  className="w-full rounded-lg border border-neutral-300 bg-white px-4 py-3 min-h-[44px] md:min-h-0 text-neutral-800 font-medium focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
-                >
-                  {filterOptions.destinations.map((d) => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="w-full sm:min-w-0 lg:flex-1 lg:min-w-[140px]">
-                <label className="block text-sm font-medium text-neutral-700 mb-1">Select Month</label>
-                <select
-                  value={month}
-                  onChange={(e) => setMonth(e.target.value)}
-                  className="w-full rounded-lg border border-neutral-300 bg-white px-4 py-3 min-h-[44px] md:min-h-0 text-neutral-800 font-medium focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
-                >
-                  {filterOptions.months.map((m) => (
-                    <option key={m} value={m}>{m}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="w-full sm:min-w-0 lg:flex-1 lg:min-w-[140px]">
-                <label className="block text-sm font-medium text-neutral-700 mb-1">Select Night</label>
-                <select
-                  value={nights}
-                  onChange={(e) => setNights(e.target.value)}
-                  className="w-full rounded-lg border border-neutral-300 bg-white px-4 py-3 min-h-[44px] md:min-h-0 text-neutral-800 font-medium focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
-                >
-                  {filterOptions.nights.map((n) => (
-                    <option key={n} value={n}>{n}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="w-full sm:min-w-0 lg:flex-1 lg:min-w-[140px]">
-                <label className="block text-sm font-medium text-neutral-700 mb-1">Select Trip</label>
-                <select
-                  value={tripName}
-                  onChange={(e) => setTripName(e.target.value)}
-                  className="w-full rounded-lg border border-neutral-300 bg-white px-4 py-3 min-h-[44px] md:min-h-0 text-neutral-800 font-medium focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
-                >
-                  {filterOptions.tripNames.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="w-full sm:w-auto lg:flex-shrink-0">
-                <button type="button" onClick={applyFilters} className="btn-gradient w-full sm:w-auto py-3 px-8 min-h-[44px] md:min-h-0 rounded-lg whitespace-nowrap">
-                  Apply
-                </button>
+
+            {/* RESTORED ORIGINAL SEARCH BAR DESIGN */}
+            <div className="p-4 md:p-8 rounded-[32px] shadow-2xl border bg-white/90 backdrop-blur-md border-white/20">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex items-end gap-4">
+                <div className="flex-1 text-left">
+                  <label className="block text-[10px] font-bold uppercase tracking-widest mb-2 text-blue-900/40">Select Destination</label>
+                  <input 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="..." 
+                    className="h-12 w-full rounded-xl border border-neutral-200 px-4 outline-none bg-white focus:border-blue-400 transition-colors" 
+                  />
+                </div>
+                <div className="flex-1 text-left">
+                  <label className="block text-[10px] font-bold uppercase tracking-widest mb-2 text-blue-900/40">Select Month</label>
+                  <input placeholder="..." className="h-12 w-full rounded-xl border border-neutral-200 px-4 outline-none bg-white focus:border-blue-400 transition-colors" />
+                </div>
+                <div className="flex-1 text-left">
+                  <label className="block text-[10px] font-bold uppercase tracking-widest mb-2 text-blue-900/40">Select Night</label>
+                  <input placeholder="..." className="h-12 w-full rounded-xl border border-neutral-200 px-4 outline-none bg-white focus:border-blue-400 transition-colors" />
+                </div>
+                <div className="flex-1 text-left">
+                  <label className="block text-[10px] font-bold uppercase tracking-widest mb-2 text-blue-900/40">Select Trip</label>
+                  <input placeholder="..." className="h-12 w-full rounded-xl border border-neutral-200 px-4 outline-none bg-white focus:border-blue-400 transition-colors" />
+                </div>
+                <button onClick={handleSearch} className="bg-blue-600 hover:bg-blue-700 text-white px-10 py-3 rounded-xl font-bold transition-all shadow-lg shadow-blue-600/30 active:scale-95">Apply</button>
               </div>
             </div>
           </div>
-          </ScrollReveal>
-          </div>
         </section>
 
-        {/* Results: sidebar + list */}
-        <section id="results" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16 overflow-x-hidden">
-          <ScrollReveal variant="slideUp" duration={600}>
-          <div className="flex flex-col lg:flex-row gap-8 min-w-0">
-            {/* Left sidebar - callback card */}
-            <aside className="lg:w-72 shrink-0 order-2 lg:order-1">
-              <div className="lg:sticky lg:top-24">
-                <CallbackCard />
+        <div className="flex gap-4 overflow-x-auto pb-10 scrollbar-hide">
+          {CATEGORIES.map((cat) => (
+            <div 
+              key={cat.id} 
+              onClick={() => handleCategoryClick(cat.id)}
+              className={`flex-shrink-0 w-64 h-44 rounded-[30px] relative overflow-hidden group cursor-pointer shadow-md border transition-all ${selectedCategory === cat.id ? 'ring-4 ring-blue-500 ring-offset-2' : 'border-neutral-100'}`}
+            >
+              <img src={cat.image} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" alt="" />
+              <div className={`absolute inset-0 bg-gradient-to-t ${cat.theme}`} />
+              <div className="absolute inset-0 p-5 flex flex-col justify-end text-white">
+                <span className="text-3xl mb-2">{cat.icon}</span>
+                <h4 className="font-bold text-lg leading-tight">{cat.title}</h4>
               </div>
-            </aside>
+            </div>
+          ))}
+        </div>
 
-            {/* Main - Trip Search Results */}
-            <div className="flex-1 min-w-0 order-1 lg:order-2">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5 p-4 rounded-xl bg-neutral-50/80 border border-neutral-100">
-                <h2 className="font-display text-lg md:text-xl font-semibold text-neutral-900">
-                  Trip Search Results
-                  <span className="ml-2 font-body font-medium text-neutral-500">({filteredTours.length})</span>
-                </h2>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-neutral-500 text-sm hidden sm:inline">Sort:</span>
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                    className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 font-medium focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
-                  >
-                    <option value="date">Departure Date</option>
-                    <option value="price">Price (Low to High)</option>
-                    <option value="nights">Duration</option>
-                  </select>
-                  <button
-                    type="button"
-                    onClick={() => setFilterOpen((f) => !f)}
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg border border-neutral-200 bg-white text-sm text-neutral-700 font-medium hover:bg-neutral-50 transition-colors"
-                  >
-                    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
-                    Filter
-                  </button>
-                </div>
-              </div>
+        <div className="flex flex-col lg:flex-row gap-8 mt-12">
+          <aside className="lg:w-72 shrink-0"><CallbackCard /></aside>
+          <div className="flex-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {displayTours.map((tour, index) => (
+                <ScrollReveal key={tour.id} staggerIndex={index}>
+                  <div className="group rounded-[32px] overflow-hidden border border-neutral-100 bg-white hover:shadow-xl transition-all h-full flex flex-col">
+                    <img src={tour.image} className="h-52 w-full object-cover" alt="" />
+                    <div className="p-5 flex flex-col flex-1">
+                      <h3 className="text-lg font-bold text-neutral-900">{tour.name}</h3>
+                      <p className="text-[11px] text-neutral-500 mb-4">{tour.origin} → {tour.destination}</p>
+                      
+                      <TourInteractions tour={tour} />
 
-              {filteredTours.length === 0 ? (
-                <div className="text-center py-20 text-neutral-600 bg-neutral-50 rounded-2xl">
-                  <p className="font-display text-xl">No trips match your filters.</p>
-                  <p className="mt-2 text-sm">Try changing destination, month or trip name.</p>
-                </div>
-              ) : (
-                <div className="space-y-8 min-w-0">
-                  {filteredTours.map((tour, index) => (
-                    <ScrollReveal key={tour.id} variant="blurUp" staggerIndex={index}>
-                      <div>
-                        <TourCard tour={tour} staggerIndex={index} />
-                        {index === 0 && filteredTours.length > 1 && (
-                          <div className="mt-6">
-                            <PromoBanner />
-                          </div>
-                        )}
+                      <div className="mt-auto pt-4 border-t border-neutral-100 flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] uppercase font-bold text-neutral-500">Starting from</p>
+                          <p className="text-xl font-bold text-blue-900">₹{tour.pricePerGuest.toLocaleString('en-IN')}</p>
+                        </div>
+                        <button onClick={() => handleTourClick(tour)} className="bg-blue-600 text-white px-5 py-2 rounded-lg text-xs font-bold uppercase">Book Now</button>
                       </div>
-                    </ScrollReveal>
-                  ))}
-                </div>
-              )}
+                    </div>
+                  </div>
+                </ScrollReveal>
+              ))}
             </div>
           </div>
-          </ScrollReveal>
-        </section>
-      </div>
-    </>
+        </div>
+      </section>
+    </div>
   )
 }

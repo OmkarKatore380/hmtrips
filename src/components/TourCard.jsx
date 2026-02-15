@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom'
 import { getVibe, VIBE_COLORS } from '../utils/destinationVibe'
+import { useAuth } from '../contexts/AuthContext'
+import { syncUserCRM } from '../lib/firestore'
 
 const VIBE_LABELS = {
   cold: 'Winter',
@@ -9,13 +11,26 @@ const VIBE_LABELS = {
 }
 
 export default function TourCard({ tour, staggerIndex }) {
+  const { user } = useAuth() // Get current user
   const vibe = getVibe(tour)
   const colors = VIBE_COLORS[vibe] || VIBE_COLORS.urban
+
+  // Trigger CRM Sync when user clicks to view details
+  const handleTrackView = () => {
+    if (user?.uid) {
+      syncUserCRM(user.uid, { 
+        lastViewedId: tour.id,
+        category: tour.category,
+        action: 'view_details'
+      });
+    }
+  };
 
   const formatDate = (d) => {
     const date = new Date(d)
     return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
   }
+  
   const startDate = formatDate(tour.departureDate)
   const endDate = tour.endDate ? formatDate(tour.endDate) : null
   const routeLabel = tour.ports?.length ? `${tour.origin} Round Trip` : `${tour.origin} → ${tour.destination}`
@@ -34,8 +49,11 @@ export default function TourCard({ tour, staggerIndex }) {
       }}
     >
       <div className="flex flex-col sm:flex-row min-w-0">
-        {/* Image - fixed aspect, no clipping of overlay content */}
-        <div className="sm:w-[40%] min-w-0 relative aspect-[16/10] sm:aspect-[4/3] sm:min-h-[200px] overflow-hidden flex-shrink-0 rounded-l-xl sm:rounded-l-xl">
+        <Link 
+          to={`/itinerary/${tour.id}`} 
+          onClick={handleTrackView} 
+          className="sm:w-[40%] min-w-0 relative aspect-[16/10] sm:aspect-[4/3] sm:min-h-[200px] overflow-hidden flex-shrink-0 rounded-l-xl sm:rounded-l-xl"
+        >
           <img
             src={tour.image}
             alt={tour.name}
@@ -46,7 +64,6 @@ export default function TourCard({ tour, staggerIndex }) {
             style={{ background: colors.overlay }}
             aria-hidden
           />
-          {/* Badge: two short lines so it never crops */}
           <div className="absolute top-2.5 left-2.5 flex flex-col gap-1 max-w-[90%]">
             <span
               className="rounded-md px-2 py-1 text-white text-[10px] font-semibold uppercase tracking-wide shadow-md leading-tight w-fit"
@@ -62,9 +79,8 @@ export default function TourCard({ tour, staggerIndex }) {
               {badgeLine2}
             </span>
           </div>
-        </div>
+        </Link>
 
-        {/* Content - allow wrap, no overflow cut-off */}
         <div className="sm:w-[60%] flex flex-col min-w-0 overflow-hidden p-4 sm:p-5">
           <div className="flex-1 min-w-0 overflow-hidden">
             <h3 className="font-display text-lg font-semibold text-neutral-900 mb-1 leading-tight break-words">
@@ -75,19 +91,8 @@ export default function TourCard({ tour, staggerIndex }) {
             </p>
             <p className="text-neutral-600 text-sm mb-1 break-words">{routeLabel}</p>
             <p className="text-neutral-400 text-xs break-words">Ports: {portsLabel}</p>
-            {(tour.offers?.length > 0 || tour.offer) && (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {(tour.offers?.length ? tour.offers : [tour.offer]).filter(Boolean).map((o) => (
-                  <span key={o} className="inline-flex items-center gap-1 rounded bg-emerald-50 px-1.5 py-0.5 text-xs text-emerald-700 break-all">
-                    <svg className="w-3.5 h-3.5 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-                    {o}
-                  </span>
-                ))}
-              </div>
-            )}
           </div>
 
-          {/* Bottom row: viewing, price, CTAs - wrap on narrow so nothing is cut */}
           <div className="mt-4 pt-4 border-t border-neutral-100 flex flex-wrap items-center gap-x-4 gap-y-3">
             <span className="text-neutral-500 text-xs tabular-nums shrink-0" title="People viewing">
               <span className="font-medium text-neutral-700">{viewingCount}</span> viewing
@@ -101,10 +106,11 @@ export default function TourCard({ tour, staggerIndex }) {
                 ₹{tour.pricePerGuest?.toLocaleString('en-IN')}
               </p>
             </div>
-            <p className="text-[10px] text-neutral-400 w-full sm:w-auto shrink-0">Excl. GST, per person</p>
+            
             <div className="flex gap-2 w-full sm:w-auto flex-shrink-0">
               <Link
                 to={`/itinerary/${tour.id}`}
+                onClick={handleTrackView}
                 className="flex-1 sm:flex-none inline-flex items-center justify-center py-2.5 px-4 text-sm font-medium text-white rounded-lg transition-all hover:opacity-90 min-w-0"
                 style={{ background: colors.accent, boxShadow: `0 2px 8px ${colors.glow}` }}
               >
@@ -112,6 +118,7 @@ export default function TourCard({ tour, staggerIndex }) {
               </Link>
               <Link
                 to={`/itinerary/${tour.id}#book`}
+                onClick={handleTrackView}
                 className="flex-1 sm:flex-none inline-flex items-center justify-center py-2.5 px-4 text-sm font-medium rounded-lg border-2 border-neutral-300 text-neutral-700 hover:bg-neutral-50 hover:border-neutral-400 transition-colors min-w-0"
               >
                 Book Now

@@ -11,178 +11,25 @@
   }
 }
 
-/* Mobile viewport: use 100dvh so content fills visible area (avoids white gap from 100vh) */
-@layer utilities {
-  .min-h-screen-mobile {
-    min-height: 100vh;
-    min-height: 100dvh;
-  }
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }
 
-/* Smooth transitions for interactive elements */
-a, button {
-  @apply transition-colors duration-200 ease-out;
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
-/* Safe area for notched devices */
-.safe-area-inset-top {
-  padding-top: max(0.5rem, env(safe-area-inset-top, 0px));
-}
-.safe-area-inset-bottom {
-  padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
-}
-
-/* Minimum touch target ~44px */
-.min-touch {
-  min-height: 44px;
-  min-width: 44px;
-}
-@media (pointer: fine) {
-  .min-touch {
-    min-height: 0;
-    min-width: 0;
-  }
-}
-
-@layer components {
-  .btn-gradient {
-    @apply inline-flex items-center justify-center px-6 py-3 font-medium text-white rounded-lg transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2;
-    background: linear-gradient(135deg, #1e40af 0%, #2563eb 50%, #0ea5e9 100%);
-  }
-  .btn-gradient:hover {
-    background: linear-gradient(135deg, #2563eb 0%, #3b82f6 50%, #38bdf8 100%);
-    box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3);
-  }
-  .btn-outline-blue {
-    @apply inline-flex items-center justify-center px-6 py-3 font-medium text-brand-blue border-2 border-brand-blue bg-white rounded-lg hover:bg-blue-50 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-2;
-  }
-  .btn-outline-purple {
-    @apply inline-flex items-center justify-center px-6 py-3 font-medium text-violet-700 border-2 border-violet-500 bg-white rounded-lg hover:bg-violet-50 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:ring-offset-2;
-  }
-}
-
-.stagger > * {
-  animation: slideUp 0.5s ease-out forwards;
-}
-.stagger > *:nth-child(1) { animation-delay: 0.05s; opacity: 0; }
-.stagger > *:nth-child(2) { animation-delay: 0.1s; opacity: 0; }
-.stagger > *:nth-child(3) { animation-delay: 0.15s; opacity: 0; }
-.stagger > *:nth-child(4) { animation-delay: 0.2s; opacity: 0; }
-.stagger > *:nth-child(5) { animation-delay: 0.25s; opacity: 0; }
-.stagger > *:nth-child(6) { animation-delay: 0.3s; opacity: 0; }
-.stagger > *:nth-child(7) { animation-delay: 0.35s; opacity: 0; }
-.stagger > *:nth-child(8) { animation-delay: 0.4s; opacity: 0; }
-.stagger > *:nth-child(9) { animation-delay: 0.45s; opacity: 0; }
-
-/* ----- Destination vibe: cold (frost / snow) ----- */
-.vibe-cold .hero-overlay-vibe {
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    rgba(224, 242, 254, 0.15) 30%,
-    rgba(186, 230, 253, 0.35) 60%,
-    rgba(26, 26, 46, 0.92) 100%
-  );
-}
-.section-bg-vibe {
-  background-color: #ffffff;
-}
-.vibe-cold .section-bg-vibe {
-  background-color: rgba(248, 250, 252, 0.98);
-}
-.vibe-tropical .section-bg-vibe {
-  background-color: rgba(255, 255, 255, 0.97);
-}
-.vibe-island .section-bg-vibe {
-  background-color: rgba(240, 253, 250, 0.5);
-}
-.vibe-urban .section-bg-vibe {
-  background-color: rgba(255, 255, 255, 0.98);
-}
-.vibe-cold .accent-text { color: #0ea5e9; }
-.vibe-cold .accent-border { border-color: rgba(14, 165, 233, 0.4); }
-
-/* Snowflakes (cold destination) - subtle, performant */
-.snowflakes {
-  pointer-events: none;
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  z-index: 1;
-}
-.snowflake {
-  position: absolute;
-  width: 8px;
-  height: 8px;
-  background: radial-gradient(circle, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.4) 70%, transparent 100%);
-  border-radius: 50%;
-  animation: snowfall linear infinite;
-}
-.snowflake:nth-child(1) { left: 5%; animation-duration: 12s; animation-delay: 0s; opacity: 0.8; }
-.snowflake:nth-child(2) { left: 15%; animation-duration: 14s; animation-delay: -2s; opacity: 0.6; }
-.snowflake:nth-child(3) { left: 25%; animation-duration: 10s; animation-delay: -4s; opacity: 0.9; }
-.snowflake:nth-child(4) { left: 35%; animation-duration: 16s; animation-delay: -1s; opacity: 0.5; }
-.snowflake:nth-child(5) { left: 45%; animation-duration: 11s; animation-delay: -3s; opacity: 0.7; }
-.snowflake:nth-child(6) { left: 55%; animation-duration: 13s; animation-delay: -5s; opacity: 0.6; }
-.snowflake:nth-child(7) { left: 65%; animation-duration: 15s; animation-delay: -2s; opacity: 0.8; }
-.snowflake:nth-child(8) { left: 75%; animation-duration: 9s; animation-delay: -4s; opacity: 0.5; }
-.snowflake:nth-child(9) { left: 85%; animation-duration: 12s; animation-delay: -1s; opacity: 0.7; }
-.snowflake:nth-child(10) { left: 95%; animation-duration: 14s; animation-delay: -3s; opacity: 0.6; }
-@keyframes snowfall {
-  0% { transform: translateY(-10vh) translateX(0); }
-  100% { transform: translateY(110vh) translateX(20px); }
-}
-
-/* Tropical / island: warm gradient overlay */
-.vibe-tropical .hero-overlay-vibe {
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    rgba(254, 243, 199, 0.1) 25%,
-    rgba(34, 197, 94, 0.15) 50%,
-    rgba(26, 26, 46, 0.9) 100%
-  );
-}
-.vibe-island .hero-overlay-vibe {
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    rgba(204, 251, 241, 0.12) 30%,
-    rgba(20, 184, 166, 0.15) 60%,
-    rgba(26, 26, 46, 0.9) 100%
-  );
-}
-.vibe-urban .hero-overlay-vibe {
-  background: linear-gradient(
-    180deg,
-    transparent 15%,
-    rgba(30, 64, 175, 0.12) 40%,
-    rgba(26, 26, 46, 0.88) 100%
-  );
-}
-
-/* Scroll-triggered section transitions */
-.reveal-on-scroll {
-  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
-}
-.reveal-on-scroll.reveal-hidden {
-  opacity: 0;
-  transform: translateY(24px);
-}
-.reveal-on-scroll.reveal-visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-/* Card hover: image zoom */
-.card-image-zoom {
-  transition: transform 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-.group:hover .card-image-zoom {
-  transform: scale(1.08);
-}
-
-/* Parallax layer */
 .parallax-layer {
   will-change: transform;
+}
+
+/* --- ROAD ANIMATION --- */
+@keyframes road-slide {
+  0% { transform: translateX(-150%); }
+  100% { transform: translateX(150%); }
+}
+
+.animate-road-slide {
+  animation: road-slide 1.2s linear infinite;
 }

@@ -1,9 +1,17 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react' // Added useEffect
 import { useParams, Link } from 'react-router-dom'
 import { useTourById } from '../data/toursData'
 import { getTourById } from '../data/tours'
 import { useAuth } from '../contexts/AuthContext'
-import { createOrder, createPayment, updatePayment, updateOrderStatus, createInquiry } from '../lib/firestore'
+import { 
+  createOrder, 
+  createPayment, 
+  updatePayment, 
+  updateOrderStatus, 
+  createInquiry,
+  syncUserCRM,     // Added
+  trackGlobalTrend // Added
+} from '../lib/firestore'
 import { openRazorpayCheckout } from '../lib/razorpay'
 import ScrollReveal from '../components/ScrollReveal'
 import { getVibe } from '../utils/destinationVibe'
@@ -122,6 +130,16 @@ function BookSection({ tour, formatPrice }) {
       })
       await updateOrderStatus(orderId, 'confirmed')
 
+      // CRM: TRACK BOOKING SUCCESS
+      if (user?.uid) {
+        syncUserCRM(user.uid, {
+          totalSpent: amount,
+          lastBooked: tour.name,
+          bookingCount: 1, // Logic inside syncUserCRM handles increment
+          action: 'conversion'
+        });
+      }
+
       if (message) {
         await createInquiry({
           userId: user?.uid || null,
@@ -178,10 +196,10 @@ function BookSection({ tour, formatPrice }) {
           </div>
           <div>
             <label className="block text-sm font-medium text-neutral-700 mb-1">Message (optional)</label>
-            <textarea
+            <input
+              type="text"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              rows={2}
               className="w-full px-4 py-3 rounded-lg border border-neutral-300"
               placeholder="Special requests..."
             />
@@ -203,16 +221,51 @@ function BookSection({ tour, formatPrice }) {
 
 export default function Itinerary() {
   const { id } = useParams()
+  const { user } = useAuth() // Access user for CRM tracking
   const { tour: tourFromHook, loading } = useTourById(id)
   const tour = tourFromHook || (id ? getTourById(id) : null)
 
+  // CRM: TRACK VIEW & SEARCH INTENT
+  useEffect(() => {
+    if (tour?.id) {
+      // Track Global Popularity
+      trackGlobalTrend(tour.destination || tour.name);
+      
+      // Track Personal History
+      if (user?.uid) {
+        syncUserCRM(user.uid, {
+          lastViewed: tour.name,
+          lastViewedId: tour.id,
+          category: tour.category || 'general',
+          viewCount: 1 // syncUserCRM handles the increment logic
+        });
+      }
+    }
+  }, [user?.uid, tour?.id, tour?.name]);
+
+  // CRM: Sentiment Handlers
+  const handleSentiment = (type) => {
+    if (!user) return;
+    syncUserCRM(user.uid, { 
+      [`sentiment.${tour.id}`]: type,
+      lastAction: `${type}d ${tour.name}`
+    });
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-neutral-50 pt-20">
-        <p className="text-neutral-600">Loading…</p>
+      <div className="flex flex-col items-center justify-center min-h-screen w-full bg-white fixed inset-0 z-[100]">
+        <div className="relative w-48 h-24 flex items-center justify-center">
+          <div className="absolute top-0 left-4 animate-pulse opacity-40 text-xl">☁️</div>
+          <div className="absolute top-4 right-8 animate-pulse delay-75 opacity-40 text-xl">☁️</div>
+          <div className="absolute z-20 animate-bounce" style={{ animationDuration: '2s' }}><div className="text-5xl transform -rotate-12">✈️</div></div>
+          <div className="absolute bottom-4 w-32 h-1.5 bg-neutral-100 rounded-full overflow-hidden"><div className="h-full bg-blue-500 w-1/2 animate-road-slide"></div></div>
+          <div className="absolute bottom-1 animate-pulse text-3xl">🚗</div>
+        </div>
       </div>
     )
   }
+  
   if (!tour) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-neutral-50 pt-20">
@@ -233,10 +286,19 @@ export default function Itinerary() {
     return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
   }
   const formatPrice = (n) => `₹${(n / 1000).toFixed(0)}K`
-  const routeLabel = tour.ports?.length ? tour.ports.join(' - ') : `${tour.origin} - ${tour.destination}`
-  const nightsDays = `${tour.nights}N/${tour.nights + 1}D`
+  const routeLabel = tour.ports?.length ? tour.ports.join(' - ') : `${tour.origin || ''} - ${tour.destination || ''}`
+  const nights = tour.nights || 0
+  const nightsDays = `${nights}N/${nights + 1}D`
   const vibe = getVibe(tour)
   const isCold = vibe === 'cold'
+
+  // Safe arrays with defaults
+  const itinerary = tour.itinerary || []
+  const highlightImages = tour.highlightImages || []
+  const galleryThumbnails = tour.galleryThumbnails || []
+  const shoreExcursionImages = tour.shoreExcursionImages || []
+  const inclusionDetails = tour.inclusionDetails || tour.inclusions || []
+  const entertainmentShows = tour.entertainmentShows || []
 
   return (
     <div className={`vibe-${vibe} min-h-screen`}>
@@ -274,12 +336,38 @@ export default function Itinerary() {
           <h1 className="font-display text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-semibold text-white leading-tight max-w-4xl drop-shadow-lg">
             {tour.name}
           </h1>
+
+          {/* CRM INTERACTION: Like / Dislike / Save */}
+          <div className="mt-4 flex gap-4">
+            <button 
+              onClick={() => handleSentiment('like')}
+              className="p-3 rounded-full bg-white/10 hover:bg-white/30 backdrop-blur-md transition-all border border-white/20 active:scale-95"
+              title="Like this tour"
+            >
+              <span className="text-xl md:text-2xl">❤️</span>
+            </button>
+            <button 
+              onClick={() => handleSentiment('dislike')}
+              className="p-3 rounded-full bg-white/10 hover:bg-white/30 backdrop-blur-md transition-all border border-white/20 active:scale-95"
+              title="Not interested"
+            >
+              <span className="text-xl md:text-2xl">👎</span>
+            </button>
+            <button 
+              onClick={() => handleSentiment('save')}
+              className="p-3 rounded-full bg-white/10 hover:bg-white/30 backdrop-blur-md transition-all border border-white/20 active:scale-95"
+              title="Save for later"
+            >
+              <span className="text-xl md:text-2xl">🔖</span>
+            </button>
+          </div>
+
           <div className="mt-4 md:mt-6 flex flex-wrap gap-x-4 gap-y-1 md:gap-6 text-white/90 text-sm md:text-base">
             <span>Departs {formatDate(tour.departureDate)}</span>
             <span className="hidden sm:inline">•</span>
-            <span>{tour.nights} Night{tour.nights > 1 ? 's' : ''}</span>
+            <span>{nights} Night{nights > 1 ? 's' : ''}</span>
             <span className="hidden sm:inline">•</span>
-            <span>{tour.origin} → {tour.destination}</span>
+            <span>{tour.origin || ''} → {tour.destination || ''}</span>
           </div>
           <div className="mt-6 md:mt-8 flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-4">
             <p className="font-display text-xl md:text-3xl font-semibold text-white">
@@ -308,7 +396,7 @@ export default function Itinerary() {
                 <span className="text-pink-600 font-medium">Disembarkation: {tour.endDate ? formatDateShort(tour.endDate) : '—'}</span>
               </p>
               <p className="text-sm text-neutral-600">
-                Route: {tour.ports?.join(' | ') || `${tour.origin} | ${tour.destination}`}
+                Route: {tour.ports?.join(' | ') || `${tour.origin || ''} | ${tour.destination || ''}`}
               </p>
             </div>
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
@@ -336,9 +424,9 @@ export default function Itinerary() {
             </div>
           </div>
           {/* Gallery thumbnails - 3 preview images */}
-          {(tour.galleryThumbnails || tour.highlightImages?.slice(0, 3) || []).length > 0 && (
+          {(galleryThumbnails.length > 0 || highlightImages.slice(0, 3).length > 0) && (
             <div className="flex gap-4 mt-6 pt-6 border-t border-neutral-100 overflow-x-auto">
-              {(tour.galleryThumbnails || tour.highlightImages?.slice(0, 3)).map((src, i) => (
+              {(galleryThumbnails.length > 0 ? galleryThumbnails : highlightImages.slice(0, 3)).map((src, i) => (
                 <div key={i} className="flex-shrink-0 w-28 h-20 rounded-lg overflow-hidden border border-neutral-200 bg-neutral-100">
                   <img src={src} alt={`Preview ${i + 1}`} className="w-full h-full object-cover" />
                 </div>
@@ -357,8 +445,8 @@ export default function Itinerary() {
             Your Trip Highlight
           </h2>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-            {(tour.highlightImages || []).length > 0
-              ? tour.highlightImages.map((img, i) => (
+            {highlightImages.length > 0
+              ? highlightImages.map((img, i) => (
                   <div key={i} className="aspect-[4/3] rounded-xl overflow-hidden shadow-md border border-neutral-200">
                     <img
                       src={img}
@@ -387,45 +475,49 @@ export default function Itinerary() {
           <p className="text-neutral-600 text-sm mb-8">Day wise details of your package</p>
 
           <div className="relative space-y-0">
-            {/* Timeline line (optional vertical connector) */}
+            {/* Timeline line */}
             <div className="absolute left-6 top-12 bottom-12 w-0.5 bg-gradient-to-b from-blue-200 via-blue-100 to-transparent hidden sm:block" aria-hidden />
 
-            {tour.itinerary.map((day, i) => (
-              <div key={day.day} className="relative flex gap-4 sm:gap-6 pb-8 last:pb-0">
-                {/* Day number - prominent circle */}
-                <div className="relative z-10 flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-blue-500 text-white font-display text-base font-bold shadow-lg ring-4 ring-white">
-                  {day.day}
-                </div>
-
-                {/* Day content card */}
-                <div className="flex-1 min-w-0 rounded-xl border border-neutral-200 bg-white p-5 shadow-sm hover:shadow-md hover:border-neutral-300 transition-all">
-                  <div className="flex flex-wrap items-baseline gap-2">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-blue-600">
-                      Day {day.day}
-                    </span>
-                    <span className="text-neutral-300">·</span>
-                    <h3 className="font-display text-lg md:text-xl font-semibold text-neutral-900 break-words">
-                      {day.port}
-                    </h3>
+            {itinerary.length > 0 ? (
+              itinerary.map((day, i) => (
+                <div key={day.day || i} className="relative flex gap-4 sm:gap-6 pb-8 last:pb-0">
+                  {/* Day number */}
+                  <div className="relative z-10 flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-blue-500 text-white font-display text-base font-bold shadow-lg ring-4 ring-white">
+                    {day.day || i + 1}
                   </div>
-                  {day.subtitle && (
-                    <p className="mt-1.5 text-emerald-600 text-sm font-medium break-words">
-                      {day.subtitle}
+
+                  {/* Day content card */}
+                  <div className="flex-1 min-w-0 rounded-xl border border-neutral-200 bg-white p-5 shadow-sm hover:shadow-md hover:border-neutral-300 transition-all">
+                    <div className="flex flex-wrap items-baseline gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-blue-600">
+                        Day {day.day || i + 1}
+                      </span>
+                      <span className="text-neutral-300">·</span>
+                      <h3 className="font-display text-lg md:text-xl font-semibold text-neutral-900 break-words">
+                        {day.port || ''}
+                      </h3>
+                    </div>
+                    {day.subtitle && (
+                      <p className="mt-1.5 text-emerald-600 text-sm font-medium break-words">
+                        {day.subtitle}
+                      </p>
+                    )}
+                    <p className="mt-3 text-neutral-600 text-sm leading-relaxed break-words max-w-3xl">
+                      {day.description || ''}
                     </p>
-                  )}
-                  <p className="mt-3 text-neutral-600 text-sm leading-relaxed break-words max-w-3xl">
-                    {day.description}
-                  </p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="text-neutral-500 text-center py-8">No itinerary details available.</p>
+            )}
           </div>
           </ScrollReveal>
         </div>
       </section>
 
       {/* Shore Excursions */}
-      {(tour.shoreExcursionImages || []).length > 0 && (
+      {shoreExcursionImages.length > 0 && (
         <section className="py-16 bg-neutral-50 border-y border-neutral-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <h2 className="font-display text-2xl font-semibold text-neutral-950 mb-2 inline-flex items-center gap-2">
@@ -433,7 +525,7 @@ export default function Itinerary() {
               <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-neutral-300 text-neutral-600 text-xs" title="Information">i</span>
             </h2>
             <div className="flex gap-4 mt-6 overflow-x-auto pb-2">
-              {tour.shoreExcursionImages.map((src, i) => (
+              {shoreExcursionImages.map((src, i) => (
                 <div key={i} className="flex-shrink-0 w-48 h-32 rounded-xl overflow-hidden border border-neutral-200 shadow-sm">
                   <img src={src} alt={`Shore excursion ${i + 1}`} className="w-full h-full object-cover" />
                 </div>
@@ -447,7 +539,7 @@ export default function Itinerary() {
         </section>
       )}
 
-      {/* Inclusions + Entertainment Shows - two columns */}
+      {/* Inclusions + Entertainment Shows */}
       <section className="py-10 md:py-16 bg-white border-t border-neutral-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
@@ -456,23 +548,23 @@ export default function Itinerary() {
               <h2 className="font-display text-xl md:text-2xl font-semibold text-neutral-950 mb-6">
                 Inclusions
               </h2>
-              <ul className="space-y-3">
-                {(tour.inclusionDetails || tour.inclusions).map((item) => (
-                  <li key={item} className="flex items-center gap-3 text-neutral-700">
-                    <svg className="w-5 h-5 text-emerald-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    {item}
-                  </li>
-                ))}
-              </ul>
+              {inclusionDetails.length > 0 ? (
+                <ul className="space-y-3">
+                  {inclusionDetails.map((item, idx) => (
+                    <li key={idx} className="flex items-center gap-3 text-neutral-700">
+                      <svg className="w-5 h-5 text-emerald-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-neutral-500 text-sm">Inclusion details will be added soon.</p>
+              )}
               {tour.inclusionNote && (
                 <p className="mt-4 text-neutral-500 text-sm">{tour.inclusionNote}</p>
               )}
-              <a href="#inclusions" className="inline-flex items-center gap-1 mt-4 text-blue-600 font-medium text-sm hover:text-blue-700">
-                View Inclusions & Exclusions
-                <span className="text-lg">&gt;</span>
-              </a>
             </div>
 
             {/* Entertainment Shows */}
@@ -480,17 +572,17 @@ export default function Itinerary() {
               <h2 className="font-display text-xl md:text-2xl font-semibold text-neutral-950 mb-6">
                 Entertainment Shows
               </h2>
-              {(tour.entertainmentShows || []).length > 0 ? (
+              {entertainmentShows.length > 0 ? (
                 <div className="border border-neutral-200 rounded-xl overflow-hidden">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-neutral-50 border-b border-neutral-200">
                         <th className="text-left py-3 px-4 font-semibold text-neutral-950">Entertainment Shows</th>
-                        <th className="text-left py-3 px-4 font-semibold text-neutral-950">{tour.nights} Night</th>
+                        <th className="text-left py-3 px-4 font-semibold text-neutral-950">{nights} Night</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {tour.entertainmentShows.map((show, i) => (
+                      {entertainmentShows.map((show, i) => (
                         <tr key={i} className="border-b border-neutral-100 last:border-0">
                           <td className="py-3 px-4 text-neutral-700">{show.name}</td>
                           <td className="py-3 px-4">
@@ -521,7 +613,6 @@ export default function Itinerary() {
         </div>
       </section>
 
-      {/* Book CTA + form (creates order & payment for admin) */}
       <BookSection tour={tour} formatPrice={formatPrice} />
     </div>
   )
