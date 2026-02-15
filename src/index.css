@@ -33,3 +33,9 @@
 .animate-road-slide {
   animation: road-slide 1.2s linear infinite;
 }
+
+@font-face {
+  font-family: 'Californian FB';
+  src: local('Californian FB'), local('CalifornianFB');
+  font-display: swap;
+}

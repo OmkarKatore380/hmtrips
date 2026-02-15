@@ -6,8 +6,9 @@ import CallbackCard from '../components/CallbackCard'
 import TourInteractions from '../components/TourInteractions'
 import { useAuth } from '../contexts/AuthContext' 
 import { db } from '../lib/firebase' 
-import { syncUserCRM } from '../lib/firestore' 
+import { syncUserCRM, trackGlobalTrend } from '../lib/firestore' 
 import { collection, query, where, getDocs, limit, orderBy, doc, getDoc } from 'firebase/firestore'
+import { GLOBAL_TRENDS_TTL_MS, getCachedGlobalTrendStats, setCachedGlobalTrendStats } from '../utils/trendingUtils'
 
 const CATEGORIES = [
   { id: 'honeymoon', title: 'Honeymoon Packages', theme: 'from-pink-500/80 to-rose-400/20', image: 'https://images.unsplash.com/photo-1583939003579-730e3918a45a?w=800&q=80', icon: '❤️' },
@@ -19,6 +20,91 @@ const CATEGORIES = [
   { id: 'jyotirlinga', title: '12 Jyotirlingas', theme: 'from-orange-600/80 to-amber-500/20', image: 'https://images.unsplash.com/photo-1605292356183-a77d0a9c9d1d?q=80&w=712&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D', icon: '🪔' }
 ]
 
+function TrendingSlider({ tours, isMobile, isLoading }) {
+  const navigate = useNavigate()
+  const maxCards = isMobile ? 4 : 6
+  const hasTours = tours && tours.length > 0
+  const visibleTours = hasTours ? tours.slice(0, maxCards) : []
+
+  return (
+    <section className="mb-10 min-h-[260px]">
+      <div className="flex items-center justify-between mb-4">
+        <h2
+          className="text-2xl md:text-3xl font-bold text-slate-800 tracking-tight"
+          style={{ fontFamily: '"Californian FB", serif' }}
+        >
+          Trending Destinations
+        </h2>
+      </div>
+
+      <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+        {isLoading &&
+          Array.from({ length: maxCards }).map((_, index) => (
+            <div
+              key={index}
+              className="flex-shrink-0 w-64 md:w-72 rounded-[32px] overflow-hidden border border-neutral-100 bg-white shadow-sm"
+            >
+              <div className="h-40 w-full bg-slate-200 animate-pulse" />
+              <div className="p-4 space-y-3">
+                <div className="h-4 bg-slate-200 rounded w-3/4 animate-pulse" />
+                <div className="h-3 bg-slate-100 rounded w-1/2 animate-pulse" />
+                <div className="h-3 bg-slate-100 rounded w-1/3 animate-pulse" />
+                <div className="h-8 bg-slate-100 rounded mt-2 animate-pulse" />
+              </div>
+            </div>
+          ))}
+
+        {!isLoading &&
+          visibleTours.map((tour, index) => (
+            <ScrollReveal key={tour.id} staggerIndex={index}>
+              <div className="flex-shrink-0 w-64 md:w-72 rounded-[32px] overflow-hidden border border-neutral-100 bg-white hover:shadow-xl transition-all flex flex-col">
+                <div className="relative w-full aspect-[16/9] bg-slate-100">
+                  <img src={tour.image} className="absolute inset-0 w-full h-full object-cover" alt="" />
+                </div>
+                <div className="p-4 flex flex-col flex-1">
+                  <h3 className="text-base font-bold text-neutral-900">{tour.name}</h3>
+                  <p className="text-[11px] text-neutral-500 mb-3">
+                    {tour.origin} → {tour.destination}
+                  </p>
+
+                  <TourInteractions tour={tour} />
+
+                  <div className="mt-auto pt-4 border-t border-neutral-100 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] uppercase font-bold text-neutral-500">Starting from</p>
+                      <p className="text-lg font-bold text-blue-900">
+                        ₹{tour.pricePerGuest.toLocaleString('en-IN')}
+                      </p>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <button
+                        onClick={() => {
+                          trackGlobalTrend(tour.destination || tour.name)
+                          navigate(`/itinerary/${tour.id}#book`)
+                        }}
+                        className="px-4 py-1.5 rounded-lg text-[11px] font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                      >
+                        Book Now
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </ScrollReveal>
+          ))}
+
+        <button
+          onClick={() => navigate('/trending')}
+          className="flex-shrink-0 w-40 md:w-48 h-40 md:h-44 rounded-[32px] border-2 border-dashed border-blue-300 flex flex-col items-center justify-center text-blue-700 bg-blue-50/40 hover:bg-blue-100/70 transition-colors"
+        >
+          <span className="text-sm font-semibold mb-1">View More</span>
+          <span className="text-[11px] text-blue-500">See all trending trips</span>
+        </button>
+      </div>
+    </section>
+  )
+}
+
 export default function UpcomingTours() {
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -28,6 +114,9 @@ export default function UpcomingTours() {
   const [isPersonalized, setIsPersonalized] = useState(false) 
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
+  const [trendingTours, setTrendingTours] = useState([])
+  const [trendStats, setTrendStats] = useState(null)
+  const [trendLoading, setTrendLoading] = useState(true)
   
   /* MOBILE VIEW MORE STATE */
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024)
@@ -81,6 +170,74 @@ export default function UpcomingTours() {
     fetchUserPreferences()
   }, [user])
 
+  useEffect(() => {
+    const fetchTrending = async () => {
+      try {
+        const { stats: cachedStats, fetchedAt } = getCachedGlobalTrendStats()
+        const now = Date.now()
+        if (cachedStats && now - fetchedAt < GLOBAL_TRENDS_TTL_MS) {
+          setTrendStats(cachedStats)
+          setTrendLoading(false)
+          return
+        }
+
+        const trendSnapshot = await getDoc(doc(db, 'metadata', 'global_trends'))
+        if (!trendSnapshot.exists()) {
+          setTrendStats(null)
+          setTrendLoading(false)
+          return
+        }
+        const data = trendSnapshot.data()
+        const stats = data?.stats || {}
+        setTrendStats(stats)
+        setCachedGlobalTrendStats(stats)
+      } catch {
+        setTrendStats(null)
+        setTrendLoading(false)
+        return
+      }
+      setTrendLoading(false)
+    }
+
+    fetchTrending()
+  }, [])
+
+  const memoizedTrendingTours = useMemo(() => {
+    if (!trendStats) return []
+
+    const sortedKeys = Object.entries(trendStats)
+      .map(([key, value]) => ({
+        key,
+        count: value?.count || 0
+      }))
+      .filter((entry) => entry.count > 0)
+      .sort((a, b) => b.count - a.count)
+      .map((entry) => entry.key)
+      .slice(0, 20)
+
+    const combined = []
+    sortedKeys.forEach((term) => {
+      const match = staticTours.find(
+        (tour) =>
+          tour.destination === term ||
+          tour.name === term
+      )
+      if (match && !combined.some((t) => t.id === match.id)) {
+        combined.push(match)
+      }
+    })
+
+    return combined
+  }, [trendStats])
+
+  useEffect(() => {
+    if (memoizedTrendingTours.length > 0) {
+      setTrendingTours(memoizedTrendingTours)
+    } else {
+      setTrendingTours(staticTours.slice(0, 6))
+    }
+  }, [memoizedTrendingTours])
+
   const handleCategoryClick = (catId) => {
     setSelectedCategory(catId === selectedCategory ? 'all' : catId);
     if (user?.uid && catId) {
@@ -102,6 +259,9 @@ export default function UpcomingTours() {
   };
 
   const handleTourClick = (tour) => {
+    if (tour) {
+      trackGlobalTrend(tour.destination || tour.name)
+    }
     if (user?.uid && tour) {
       syncUserCRM(user.uid, {
         lastClickedTour: tour.name || 'Unknown',
@@ -109,7 +269,7 @@ export default function UpcomingTours() {
         lastInteraction: 'view_itinerary_click'
       });
     }
-    navigate(`/itinerary/${tour.id}`);
+    navigate(`/itinerary/${tour.id}#book`);
   }
 
   const filteredTours = useMemo(() => {
@@ -174,12 +334,21 @@ export default function UpcomingTours() {
           </div>
         </section>
 
+        <TrendingSlider tours={trendingTours} isMobile={isMobile} isLoading={trendLoading} />
+
+        <h2
+          className="text-2xl md:text-3xl font-bold text-slate-800 mb-6 tracking-tight"
+          style={{ fontFamily: '"Californian FB", serif' }}
+        >
+          Explore by Category
+        </h2>
+
         <div className="flex gap-4 overflow-x-auto pb-10 scrollbar-hide">
           {CATEGORIES.map((cat) => (
-            <div 
+              <div 
               key={cat.id} 
               onClick={() => handleCategoryClick(cat.id)}
-              className={`flex-shrink-0 w-64 h-44 rounded-[30px] relative overflow-hidden group cursor-pointer shadow-md border transition-all ${selectedCategory === cat.id ? 'ring-4 ring-blue-500 ring-offset-2' : 'border-neutral-100'}`}
+              className={`flex-shrink-0 w-64 h-44 rounded-[30px] relative overflow-hidden group cursor-pointer shadow-md border bg-slate-100 transition-all ${selectedCategory === cat.id ? 'ring-4 ring-blue-500 ring-offset-2' : 'border-neutral-100'}`}
             >
               <img src={cat.image} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" alt="" />
               <div className={`absolute inset-0 bg-gradient-to-t ${cat.theme}`} />
@@ -200,28 +369,59 @@ export default function UpcomingTours() {
               Top Choices
             </h2>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {displayTours.map((tour, index) => (
-                <ScrollReveal key={tour.id} staggerIndex={index}>
-                  <div className="group rounded-[32px] overflow-hidden border border-neutral-100 bg-white hover:shadow-xl transition-all h-full flex flex-col">
-                    <img src={tour.image} className="h-52 w-full object-cover" alt="" />
-                    <div className="p-5 flex flex-col flex-1">
-                      <h3 className="text-lg font-bold text-neutral-900">{tour.name}</h3>
-                      <p className="text-[11px] text-neutral-500 mb-4">{tour.origin} → {tour.destination}</p>
-                      
-                      <TourInteractions tour={tour} />
-
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 min-h-[420px]">
+              {loading &&
+                Array.from({ length: 6 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="group rounded-[32px] overflow-hidden border border-neutral-100 bg-white shadow-sm h-full flex flex-col animate-pulse"
+                  >
+                    <div className="relative w-full aspect-[16/9] bg-slate-200" />
+                    <div className="p-5 flex flex-col flex-1 space-y-3">
+                      <div className="h-4 bg-slate-200 rounded w-3/4" />
+                      <div className="h-3 bg-slate-100 rounded w-1/2" />
+                      <div className="h-3 bg-slate-100 rounded w-1/3" />
                       <div className="mt-auto pt-4 border-t border-neutral-100 flex items-center justify-between">
-                        <div>
-                          <p className="text-[10px] uppercase font-bold text-neutral-500">Starting from</p>
-                          <p className="text-xl font-bold text-blue-900">₹{tour.pricePerGuest.toLocaleString('en-IN')}</p>
-                        </div>
-                        <button onClick={() => handleTourClick(tour)} className="bg-blue-600 text-white px-5 py-2 rounded-lg text-xs font-bold uppercase">Book Now</button>
+                        <div className="h-6 bg-slate-100 rounded w-20" />
+                        <div className="h-8 bg-slate-200 rounded w-24" />
                       </div>
                     </div>
                   </div>
-                </ScrollReveal>
-              ))}
+                ))}
+
+              {!loading &&
+                displayTours.map((tour, index) => (
+                  <ScrollReveal key={tour.id} staggerIndex={index}>
+                    <div className="group rounded-[32px] overflow-hidden border border-neutral-100 bg-white hover:shadow-xl transition-all h-full flex flex-col">
+                      <div className="relative w-full aspect-[16/9] bg-slate-100">
+                        <img src={tour.image} className="absolute inset-0 w-full h-full object-cover" alt="" />
+                      </div>
+                      <div className="p-5 flex flex-col flex-1">
+                        <h3 className="text-lg font-bold text-neutral-900">{tour.name}</h3>
+                        <p className="text-[11px] text-neutral-500 mb-4">
+                          {tour.origin} → {tour.destination}
+                        </p>
+
+                        <TourInteractions tour={tour} />
+
+                        <div className="mt-auto pt-4 border-t border-neutral-100 flex items-center justify-between">
+                          <div>
+                            <p className="text-[10px] uppercase font-bold text-neutral-500">Starting from</p>
+                            <p className="text-xl font-bold text-blue-900">
+                              ₹{tour.pricePerGuest.toLocaleString('en-IN')}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => handleTourClick(tour)}
+                            className="bg-blue-600 text-white px-5 py-2 rounded-lg text-xs font-bold uppercase"
+                          >
+                            Book Now
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </ScrollReveal>
+                ))}
             </div>
 
             {/* MOBILE VIEW MORE BUTTON */}

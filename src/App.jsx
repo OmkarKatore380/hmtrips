@@ -5,6 +5,7 @@ import AIChatBox from './components/AIChatBox'
 import SiteLayout from './components/SiteLayout'
 import UpcomingTours from './pages/UpcomingTours'
 import Itinerary from './pages/Itinerary'
+import TrendingPage from './pages/TrendingPage'
 import AdminLayout from './pages/admin/AdminLayout'
 import AdminLogin from './pages/admin/AdminLogin'
 import AdminDashboard from './pages/admin/AdminDashboard'
@@ -80,6 +81,7 @@ function App() {
           <Route path="/" element={<SiteLayout />}>
             <Route index element={<UpcomingTours />} />
             <Route path="itinerary/:id" element={<Itinerary />} />
+            <Route path="trending" element={<TrendingPage />} />
           </Route>
         </Routes>
       </Suspense>

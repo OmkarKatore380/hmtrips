@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { getVibe, VIBE_COLORS } from '../utils/destinationVibe'
 import { useAuth } from '../contexts/AuthContext'
-import { syncUserCRM } from '../lib/firestore'
+import { syncUserCRM, trackGlobalTrend } from '../lib/firestore'
 
 const VIBE_LABELS = {
   cold: 'Winter',
@@ -17,6 +17,7 @@ export default function TourCard({ tour, staggerIndex }) {
 
   // Trigger CRM Sync when user clicks to view details
   const handleTrackView = () => {
+    trackGlobalTrend(tour.destination || tour.name)
     if (user?.uid) {
       syncUserCRM(user.uid, { 
         lastViewedId: tour.id,
