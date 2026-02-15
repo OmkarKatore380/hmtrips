@@ -28,6 +28,17 @@ export default function UpcomingTours() {
   const [isPersonalized, setIsPersonalized] = useState(false) 
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
+  
+  /* MOBILE VIEW MORE STATE */
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024)
+  const [mobileExpanded, setMobileExpanded] = useState(false)
+
+  // Detect screen size for mobile view logic
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 1024)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   // Personalization Logic
   useEffect(() => {
@@ -110,7 +121,14 @@ export default function UpcomingTours() {
     });
   }, [recommendedTours, searchQuery, selectedCategory]);
 
-  const displayTours = useMemo(() => filteredTours.slice(0, viewLimit), [filteredTours, viewLimit])
+  /* UPDATED DISPLAY TOURS LOGIC FOR MOBILE 4-OPTION LIMIT */
+  const displayTours = useMemo(() => {
+    const baseList = filteredTours.slice(0, viewLimit);
+    if (isMobile && !mobileExpanded) {
+      return baseList.slice(0, 4);
+    }
+    return baseList;
+  }, [filteredTours, viewLimit, isMobile, mobileExpanded])
 
   return (
     <div className="bg-white min-h-screen">
@@ -174,8 +192,14 @@ export default function UpcomingTours() {
         </div>
 
         <div className="flex flex-col lg:flex-row gap-8 mt-12">
-          <aside className="lg:w-72 shrink-0"><CallbackCard /></aside>
+          <aside className="lg:w-72 shrink-0">
+            <CallbackCard />
+          </aside>
           <div className="flex-1">
+            <h2 className="text-3xl font-bold text-slate-800 mb-8 tracking-tight" style={{ fontFamily: '"Californian FB", serif' }}>
+              Top Choices
+            </h2>
+            
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {displayTours.map((tour, index) => (
                 <ScrollReveal key={tour.id} staggerIndex={index}>
@@ -199,6 +223,18 @@ export default function UpcomingTours() {
                 </ScrollReveal>
               ))}
             </div>
+
+            {/* MOBILE VIEW MORE BUTTON */}
+            {isMobile && !mobileExpanded && filteredTours.length > 4 && (
+              <div className="mt-10 text-center">
+                <button 
+                  onClick={() => setMobileExpanded(true)}
+                  className="px-8 py-3 rounded-full border-2 border-blue-600 text-blue-600 font-bold hover:bg-blue-600 hover:text-white transition-all active:scale-95"
+                >
+                  View More
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </section>
