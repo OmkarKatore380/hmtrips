@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { db } from '../lib/firebase'
 import { doc, getDoc } from 'firebase/firestore'
 import { buildTrendingToursFromStats, GLOBAL_TRENDS_TTL_MS, getCachedGlobalTrendStats, setCachedGlobalTrendStats } from '../utils/trendingUtils'
+import { getBlendedTrendStats } from '../services/trendEngine'
 import { tours as staticTours } from '../data/tours'
 import ScrollReveal from '../components/ScrollReveal'
 import TourInteractions from '../components/TourInteractions'
@@ -26,14 +27,7 @@ export default function TrendingPage() {
           return
         }
 
-        const snapshot = await getDoc(doc(db, 'metadata', 'global_trends'))
-        if (!snapshot.exists()) {
-          setStats(null)
-          setLoading(false)
-          return
-        }
-        const data = snapshot.data()
-        const stats = data?.stats || {}
+        const stats = await getBlendedTrendStats()
         setStats(stats)
         setCachedGlobalTrendStats(stats)
       } catch {
@@ -115,7 +109,9 @@ export default function TrendingPage() {
             {trendingTours.map((tour, index) => (
               <ScrollReveal key={tour.id} staggerIndex={index}>
                 <div className="group rounded-[32px] overflow-hidden border border-neutral-100 bg-white hover:shadow-xl transition-all h-full flex flex-col">
-                  <img src={tour.image} className="h-52 w-full object-cover" alt="" />
+                  <div className="relative w-full aspect-[16/9] bg-slate-100">
+                    <img src={tour.image} className="absolute inset-0 w-full h-full object-cover" alt="" />
+                  </div>
                   <div className="p-5 flex flex-col flex-1">
                     <h3 className="text-lg font-bold text-neutral-900">{tour.name}</h3>
                     <p className="text-[11px] text-neutral-500 mb-4">
@@ -133,20 +129,12 @@ export default function TrendingPage() {
                           ₹{tour.pricePerGuest.toLocaleString('en-IN')}
                         </p>
                       </div>
-                      <div className="flex flex-col gap-1">
-                        <button
-                          onClick={() => handleTourClick(tour, 'trending_view_itinerary')}
-                          className="px-4 py-1.5 rounded-lg text-[11px] font-semibold border border-blue-600 text-blue-600 hover:bg-blue-50 transition-colors"
-                        >
-                          View Itinerary
-                        </button>
-                        <button
-                          onClick={() => handleBookClick(tour)}
-                          className="px-4 py-1.5 rounded-lg text-[11px] font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-                        >
-                          Book Now
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => handleBookClick(tour)}
+                        className="px-4 py-1.5 rounded-lg text-[11px] font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                      >
+                        Book Now
+                      </button>
                     </div>
                   </div>
                 </div>

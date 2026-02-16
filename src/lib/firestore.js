@@ -37,6 +37,31 @@ export async function getToursFromFirestore() {
   }
 }
 
+// Initialize tour interaction fields if they don't exist
+export async function ensureTourInteractionFields(tourId, tourData) {
+  if (!tourId) return;
+  
+  const tourRef = doc(db, COLLECTIONS.tours, tourId);
+  const snap = await getDoc(tourRef);
+  
+  if (snap.exists()) {
+    const currentData = snap.data();
+    const updates = {};
+    
+    // Ensure all interaction fields exist with default values
+    const interactionFields = ['likes', 'saves', 'shares', 'views'];
+    interactionFields.forEach(field => {
+      if (currentData[field] === undefined || currentData[field] === null) {
+        updates[field] = 0;
+      }
+    });
+    
+    if (Object.keys(updates).length > 0) {
+      await updateDoc(tourRef, updates);
+    }
+  }
+}
+
 export async function getTourByIdFromFirestore(id) {
   const ref = doc(db, COLLECTIONS.tours, id)
   const snap = await getDoc(ref)

@@ -51,15 +51,19 @@ export default function TourCard({ tour, staggerIndex }) {
     >
       <div className="flex flex-col sm:flex-row min-w-0">
         <Link 
-          to={`/itinerary/${tour.id}`} 
+          to={`/itinerary/${tour.id}#book`} 
           onClick={handleTrackView} 
-          className="sm:w-[40%] min-w-0 relative aspect-[16/10] sm:aspect-[4/3] sm:min-h-[200px] overflow-hidden flex-shrink-0 rounded-l-xl sm:rounded-l-xl"
+          className="sm:w-[40%] min-w-0 relative aspect-[16/9] sm:aspect-[16/9] sm:min-h-[200px] overflow-hidden flex-shrink-0 rounded-l-xl sm:rounded-l-xl"
         >
-          <img
-            src={tour.image}
-            alt={tour.name}
-            className="absolute inset-0 w-full h-full object-cover object-center card-image-zoom"
-          />
+          {/* Smooth Auto-Loading Image with 16:9 Aspect Ratio */}
+          <div className="absolute inset-0 overflow-hidden">
+            <img
+              src={tour.image}
+              alt={tour.name}
+              className="w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
+              style={{ aspectRatio: '16 / 9' }}
+            />
+          </div>
           <div
             className="absolute inset-0 opacity-50 group-hover:opacity-35 transition-opacity duration-300"
             style={{ background: colors.overlay }}
@@ -110,17 +114,10 @@ export default function TourCard({ tour, staggerIndex }) {
             
             <div className="flex gap-2 w-full sm:w-auto flex-shrink-0">
               <Link
-                to={`/itinerary/${tour.id}`}
+                to={`/itinerary/${tour.id}#book`}
                 onClick={handleTrackView}
                 className="flex-1 sm:flex-none inline-flex items-center justify-center py-2.5 px-4 text-sm font-medium text-white rounded-lg transition-all hover:opacity-90 min-w-0"
                 style={{ background: colors.accent, boxShadow: `0 2px 8px ${colors.glow}` }}
-              >
-                View Itinerary
-              </Link>
-              <Link
-                to={`/itinerary/${tour.id}#book`}
-                onClick={handleTrackView}
-                className="flex-1 sm:flex-none inline-flex items-center justify-center py-2.5 px-4 text-sm font-medium rounded-lg border-2 border-neutral-300 text-neutral-700 hover:bg-neutral-50 hover:border-neutral-400 transition-colors min-w-0"
               >
                 Book Now
               </Link>

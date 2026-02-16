@@ -1,6 +1,6 @@
 import { tours as staticTours } from '../data/tours'
 
-export const GLOBAL_TRENDS_TTL_MS = 5 * 60 * 1000
+export const GLOBAL_TRENDS_TTL_MS = 24 * 60 * 60 * 1000
 
 let cachedGlobalTrendStats = null
 let cachedGlobalTrendFetchedAt = 0

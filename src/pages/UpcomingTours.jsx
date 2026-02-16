@@ -9,6 +9,7 @@ import { db } from '../lib/firebase'
 import { syncUserCRM, trackGlobalTrend } from '../lib/firestore' 
 import { collection, query, where, getDocs, limit, orderBy, doc, getDoc } from 'firebase/firestore'
 import { GLOBAL_TRENDS_TTL_MS, getCachedGlobalTrendStats, setCachedGlobalTrendStats } from '../utils/trendingUtils'
+import { getBlendedTrendStats } from '../services/trendEngine'
 
 const CATEGORIES = [
   { id: 'honeymoon', title: 'Honeymoon Packages', theme: 'from-pink-500/80 to-rose-400/20', image: 'https://images.unsplash.com/photo-1583939003579-730e3918a45a?w=800&q=80', icon: '❤️' },
@@ -33,7 +34,7 @@ function TrendingSlider({ tours, isMobile, isLoading }) {
           className="text-2xl md:text-3xl font-bold text-slate-800 tracking-tight"
           style={{ fontFamily: '"Californian FB", serif' }}
         >
-          Trending Destinations
+          Global Trending Destinations
         </h2>
       </div>
 
@@ -173,37 +174,51 @@ export default function UpcomingTours() {
   useEffect(() => {
     const fetchTrending = async () => {
       try {
-        const { stats: cachedStats, fetchedAt } = getCachedGlobalTrendStats()
-        const now = Date.now()
-        if (cachedStats && now - fetchedAt < GLOBAL_TRENDS_TTL_MS) {
-          setTrendStats(cachedStats)
-          setTrendLoading(false)
-          return
+        // Cache-First logic: Check localStorage for instant 2G loading
+        const cacheKey = 'global_trends_cache'
+        const cachedData = localStorage.getItem(cacheKey)
+        
+        if (cachedData) {
+          try {
+            const parsedCache = JSON.parse(cachedData)
+            const cacheAge = Date.now() - parsedCache.timestamp
+            
+            // If cache is less than 6 hours old, use it immediately
+            if (cacheAge < 6 * 60 * 60 * 1000) {
+              setTrendStats(parsedCache.data)
+              setTrendLoading(false)
+              console.log('🔄 Using cached trends for instant 2G load')
+              return
+            }
+          } catch (e) {
+            console.warn('⚠️ Cache parsing failed, fetching from Firestore')
+          }
         }
 
-        const trendSnapshot = await getDoc(doc(db, 'metadata', 'global_trends'))
-        if (!trendSnapshot.exists()) {
-          setTrendStats(null)
-          setTrendLoading(false)
-          return
-        }
-        const data = trendSnapshot.data()
-        const stats = data?.stats || {}
+        // Set loading state for skeleton
+        setTrendLoading(true)
+        
+        // Fetch from Firestore
+        const stats = await getBlendedTrendStats()
         setTrendStats(stats)
-        setCachedGlobalTrendStats(stats)
-      } catch {
+        setTrendLoading(false)
+        
+        console.log('✅ Trends fetched from Firestore')
+      } catch (error) {
+        console.error('❌ Error fetching trends:', error)
         setTrendStats(null)
         setTrendLoading(false)
-        return
       }
-      setTrendLoading(false)
     }
 
     fetchTrending()
   }, [])
 
   const memoizedTrendingTours = useMemo(() => {
-    if (!trendStats) return []
+    if (!trendStats) {
+      // Pre-launch state: show only featured tours
+      return staticTours.filter(tour => tour.isFeatured === true)
+    }
 
     const sortedKeys = Object.entries(trendStats)
       .map(([key, value]) => ({
@@ -233,9 +248,8 @@ export default function UpcomingTours() {
   useEffect(() => {
     if (memoizedTrendingTours.length > 0) {
       setTrendingTours(memoizedTrendingTours)
-    } else {
-      setTrendingTours(staticTours.slice(0, 6))
     }
+    // STRICT LOGIC: Removed else block - TrendingSlider shows only tours present in trendStats
   }, [memoizedTrendingTours])
 
   const handleCategoryClick = (catId) => {
@@ -340,7 +354,7 @@ export default function UpcomingTours() {
           className="text-2xl md:text-3xl font-bold text-slate-800 mb-6 tracking-tight"
           style={{ fontFamily: '"Californian FB", serif' }}
         >
-          Explore by Category
+          Popular Trip Styles
         </h2>
 
         <div className="flex gap-4 overflow-x-auto pb-10 scrollbar-hide">

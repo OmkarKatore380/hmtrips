@@ -9,7 +9,8 @@ export const tours = [
     origin: 'Delhi',
     departureDate: '2026-02-14',
     endDate: '2026-02-18',
-    offer: 'Budget Deal'
+    offer: 'Budget Deal',
+    isFeatured: true
   },
   {
     id: 'kashmir-002',
@@ -20,7 +21,8 @@ export const tours = [
     viewing: 210,
     origin: 'Srinagar',
     departureDate: '2026-03-01',
-    endDate: '2026-03-06'
+    endDate: '2026-03-06',
+    isFeatured: true
   },
   {
     id: 'manali-003',
@@ -31,7 +33,8 @@ export const tours = [
     viewing: 89,
     origin: 'Delhi',
     departureDate: '2026-02-20',
-    endDate: '2026-02-23'
+    endDate: '2026-02-23',
+    isFeatured: false
   },
   {
     id: 'ladakh-004',
@@ -42,7 +45,8 @@ export const tours = [
     viewing: 45,
     origin: 'Leh',
     departureDate: '2026-06-10',
-    endDate: '2026-06-17'
+    endDate: '2026-06-17',
+    isFeatured: false
   },
   {
     id: 'leh-005',
@@ -53,7 +57,8 @@ export const tours = [
     viewing: 67,
     origin: 'Dehradun',
     departureDate: '2026-05-15',
-    endDate: '2026-05-20'
+    endDate: '2026-05-20',
+    isFeatured: false
   },
   {
     id: 'switzerland-006',
@@ -64,7 +69,8 @@ export const tours = [
     viewing: 312,
     origin: 'Zurich',
     departureDate: '2026-10-10',
-    endDate: '2026-10-16'
+    endDate: '2026-10-16',
+    isFeatured: true
   },
   {
     id: 'gulmarg-007',
@@ -75,7 +81,8 @@ export const tours = [
     viewing: 120,
     origin: 'Srinagar',
     departureDate: '2026-12-20',
-    endDate: '2026-12-24'
+    endDate: '2026-12-24',
+    isFeatured: false
   },
   {
     id: 'iceland-008',
@@ -86,7 +93,8 @@ export const tours = [
     viewing: 88,
     origin: 'Reykjavik',
     departureDate: '2026-11-05',
-    endDate: '2026-11-10'
+    endDate: '2026-11-10',
+    isFeatured: true
   },
   {
     id: 'goa-009',
@@ -97,7 +105,8 @@ export const tours = [
     viewing: 235,
     origin: 'Mumbai',
     departureDate: '2026-03-15',
-    endDate: '2026-03-20'
+    endDate: '2026-03-20',
+    isFeatured: true
   }
 ];
 
