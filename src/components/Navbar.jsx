@@ -37,27 +37,25 @@ export default function Navbar({ onLoginClick }) {
 
           {/* Desktop Navigation Links */}
           <div className="hidden lg:flex items-center gap-10">
-            <button className="text-neutral-900 hover:text-brand-blue text-[17px] font-bold transition-colors flex items-center gap-1">
-              Our trips
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-            </button>
+            <Link to="/tours" className="text-neutral-900 hover:text-brand-blue text-[17px] font-bold transition-colors">
+              All Tours
+            </Link>
             <button className="text-neutral-900 hover:text-brand-blue text-[17px] font-bold transition-colors flex items-center gap-1">
               Destinations
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
             </button>
-            <a href="#callback" className="text-neutral-900 hover:text-brand-blue text-[17px] font-bold transition-colors">Group Enquiry</a>
-            <a href="#offers" className="text-neutral-900 hover:text-brand-blue text-[17px] font-bold transition-colors">Blogs</a>
+            <Link to="/tours" className="text-neutral-900 hover:text-brand-blue text-[17px] font-bold transition-colors">Custom Package</Link>
             <a href="#offers" className="text-neutral-900 hover:text-brand-blue text-[17px] font-bold transition-colors">Offers</a>
           </div>
 
           {/* Desktop Right Side Buttons - Fixed Visibility */}
           <div className="hidden lg:flex items-center gap-3">
-            <Link to="/" className="bg-blue-600 hover:bg-blue-700 text-white text-sm py-2.5 px-5 rounded-lg font-bold transition-colors">
+            <Link to="/tours" className="bg-blue-600 hover:bg-blue-700 text-white text-sm py-2.5 px-5 rounded-lg font-bold transition-colors">
               Find A Trip
             </Link>
-            <button type="button" className="border border-purple-600 text-purple-600 hover:bg-purple-50 text-sm py-2.5 px-5 rounded-lg font-bold transition-colors">
-              Check-in
-            </button>
+            <Link to="/tours" className="border border-purple-600 text-purple-600 hover:bg-purple-50 text-sm py-2.5 px-5 rounded-lg font-bold transition-colors">
+              Custom Package
+            </Link>
             
             {user ? (
               <div className="relative" ref={profileRef}>
@@ -152,20 +150,19 @@ export default function Navbar({ onLoginClick }) {
               </div>
             )}
 
-            <a href="#callback" className="block py-3 px-4 text-neutral-900 hover:bg-neutral-50 border-b border-neutral-100 text-[17px] font-bold" onClick={() => setOpen(false)}>Our trips</a>
+            <Link to="/tours" className="block py-3 px-4 text-neutral-900 hover:bg-neutral-50 border-b border-neutral-100 text-[17px] font-bold" onClick={() => setOpen(false)}>All Tours</Link>
+            <Link to="/tours" className="block py-3 px-4 text-neutral-900 hover:bg-neutral-50 border-b border-neutral-100 text-[17px] font-bold" onClick={() => setOpen(false)}>Custom Package</Link>
             <a href="#destinations" className="block py-3 px-4 text-neutral-900 hover:bg-neutral-50 border-b border-neutral-100 text-[17px] font-bold" onClick={() => setOpen(false)}>Destinations</a>
-            <a href="#callback" className="block py-3 px-4 text-neutral-900 hover:bg-neutral-50 border-b border-neutral-100 text-[17px] font-bold" onClick={() => setOpen(false)}>Group Enquiry</a>
-            <a href="#offers" className="block py-3 px-4 text-neutral-900 hover:bg-neutral-50 border-b border-neutral-100 text-[17px] font-bold" onClick={() => setOpen(false)}>Blogs</a>
             <a href="#offers" className="block py-3 px-4 text-neutral-900 hover:bg-neutral-50 border-b border-neutral-100 text-[17px] font-bold" onClick={() => setOpen(false)}>Offers</a>
             
             {/* Mobile Action Buttons - Fixed Visibility */}
             <div className="p-4 space-y-2">
-              <Link to="/" className="flex items-center justify-center min-h-[44px] w-full bg-blue-600 text-white rounded-lg text-[17px] font-bold" onClick={() => setOpen(false)}>
+              <Link to="/tours" className="flex items-center justify-center min-h-[44px] w-full bg-blue-600 text-white rounded-lg text-[17px] font-bold" onClick={() => setOpen(false)}>
                 Find A Trip
               </Link>
-              <button type="button" className="w-full min-h-[44px] border border-purple-600 text-purple-600 rounded-lg text-[17px] font-bold" onClick={() => setOpen(false)}>
-                Check-in
-              </button>
+              <Link to="/tours" className="flex items-center justify-center min-h-[44px] w-full border border-purple-600 text-purple-600 rounded-lg text-[17px] font-bold" onClick={() => setOpen(false)}>
+                Custom Package
+              </Link>
             </div>
           </div>
         )}

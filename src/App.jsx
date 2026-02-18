@@ -1,4 +1,4 @@
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, Suspense, lazy } from 'react'
 import { Routes, Route, useLocation } from 'react-router-dom'
 import SplashScreen from './components/SplashScreen'
 import AIChatBox from './components/AIChatBox'
@@ -6,6 +6,7 @@ import SiteLayout from './components/SiteLayout'
 import UpcomingTours from './pages/UpcomingTours'
 import Itinerary from './pages/Itinerary'
 import TrendingPage from './pages/TrendingPage'
+import Tours from './pages/Tours'
 import AdminLayout from './pages/admin/AdminLayout'
 import AdminLogin from './pages/admin/AdminLogin'
 import AdminDashboard from './pages/admin/AdminDashboard'
@@ -80,6 +81,7 @@ function App() {
           </Route>
           <Route path="/" element={<SiteLayout />}>
             <Route index element={<UpcomingTours />} />
+            <Route path="tours" element={<Tours />} />
             <Route path="itinerary/:id" element={<Itinerary />} />
             <Route path="trending" element={<TrendingPage />} />
           </Route>
